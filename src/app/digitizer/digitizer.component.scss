@@ -1,0 +1,95 @@
+.flame {
+	width: 1450px;
+	overflow: auto;
+}
+
+.canvas-wrapper {
+	canvas {
+    border: solid 1px #979797;
+    width: 700px;
+    height: 500px;
+		&:hover {
+			cursor: crosshair;
+		}
+	}
+	.image-configure {
+		.zoom-slider {
+			display: flex;
+			align-items: center;
+		}
+	}
+}
+
+.information-wrapper {
+	.information {
+		width: 250px;
+		height: 500px;
+		border: solid 1px #979797;
+	}
+	.axis-configure {
+		width: 250px;
+		height: 100px;
+		margin-bottom: 10px;;
+		padding: 10px;
+		.axis-name {
+			font-weight: bold;
+		}
+	}
+	.coordinate-info {
+		margin: 0;
+		padding: 0 10px 10px 10px;
+		width: 250px;
+		height: 350px;
+	}
+	.number {
+		width: 40px;
+	}
+	.cordinate {
+		width: 90px;
+	}
+}
+
+mat-slider {
+  width: 300px;
+}
+
+.mat-raised-button {
+	color: #ffffff;
+	background-color: #299c33;
+	outline: none;
+}
+
+.mat-input-element {
+	width: 80px;
+}
+
+table {
+	width: 220px;
+	margin: 0 auto;
+	thead {
+		text-align: center;
+		display: block;
+		tr {
+			height: 25px;
+			background-color: #cacaca;
+		}
+	}
+	tbody {
+		text-align: right;
+		display: block;
+		overflow-x: hidden;
+		overflow-y: scroll;
+		border: none;
+		height: 325px;
+		font-size: 13px;
+		tr {
+			height: 25px;
+			&:hover {
+				background-color:#81d896;
+			}
+			td {
+				padding-right: 10px;
+			}
+		}
+	}
+}

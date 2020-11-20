@@ -6,7 +6,7 @@
       </div>
       <div class="d-flex image-configure mt-2">
         <div class="col-3 p-0">
-          <button mat-raised-button>画像を読み込む</button>
+          <button mat-raised-button (click)="onClickFileInputButton()">画像を読み込む</button>
         </div>
         <div class="col-9 p-0 zoom-slider">
           <mat-icon>zoom_out</mat-icon>
@@ -55,3 +55,6 @@
     </div>
   </div>
 </div>
+<!-- 画像読込み用 -->
+<input type="file" style="display: none;" #fileInput accept="image/*" (change)="onChangeFileInput($event)">
+<img id="image" style="display: none;" [src]="imgSrc">

@@ -47,10 +47,15 @@ export class DigitizerComponent implements OnInit {
   }
 
   onClickFileInputButton(): void {
-    this.fileInput.nativeElement.click();
+    if (!this.file || confirm('新しく画像を読み込みますか？\n前の画像やプロット状態などは保存されません。')) {
+      this.fileInput.nativeElement.click();
+    }
   }
 
   setImageToCanvas(imageWidth: number, imageHeight: number): void {
+    // キャンバス上のオブジェクトを全てクリア
+    paper.project.activeLayer.removeChildren();
+
     const raster = new Raster('image');
     // Rasterオブジェクトの幅と高さを、読み込んだ画像の幅・高さに合わせる
     raster.width = imageWidth;

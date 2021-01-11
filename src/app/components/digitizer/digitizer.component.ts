@@ -1,11 +1,10 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import * as paper from 'paper';
 import { Raster, Matrix } from 'paper';
-import { Point } from 'paper/dist/paper-core';
-import { view } from 'paper/dist/paper-full';
+import { view, Tool, Point } from 'paper/dist/paper-full';
 
 enum ScaleConfig {
-  factor = 1.25,
+  factor = 1.05,
   minScale = 0.5,
   maxScale = 3,
 }
@@ -27,7 +26,7 @@ export class DigitizerComponent implements OnInit {
   imgSrc: string | ArrayBuffer = '';
   currentX = 0;
   currentY = 0;
-  originViewCenter: paper.Point;
+  originViewCenter: Point;
   currentScale = 1;
   currentFactor = ScaleConfig.factor;
   isScaleEndRange = false;
@@ -48,35 +47,22 @@ export class DigitizerComponent implements OnInit {
     }
 
     const image = new Image();
+    image.onload = () => {
+      this.setImageToCanvas();
+    };
     const fileReader = new FileReader();
     this.file = event.target.files[0];
+    fileReader.readAsDataURL(this.file);
     fileReader.onload = () => {
       this.imgSrc = fileReader.result;
       image.src = fileReader.result as string;
-      image.onload = () => {
-        // 読み込んだ画像の幅・高さを取得する
-        this.setImageToCanvas(image.naturalWidth, image.naturalHeight);
-      };
     };
-    fileReader.readAsDataURL(this.file);
   }
 
   onClickFileInputButton(): void {
     if (!this.file || confirm('新しく画像を読み込みますか？\n前の画像やプロット状態などは保存されません。')) {
       this.fileInput.nativeElement.click();
     }
-  }
-
-  setImageToCanvas(imageWidth: number, imageHeight: number): void {
-    // キャンバス上のオブジェクトを全てクリア
-    paper.project.activeLayer.removeChildren();
-
-    const raster = new Raster('image');
-    // Rasterオブジェクトの幅と高さを、読み込んだ画像の幅・高さに合わせる
-    raster.width = imageWidth;
-    raster.height = imageHeight;
-    // Rasterオブジェクトの中心をキャンバスの中心に合わせる
-    raster.position = view.center;
   }
 
   scalingView(event): void {
@@ -105,7 +91,7 @@ export class DigitizerComponent implements OnInit {
     this.isScaleEndRange = this.currentScale === ScaleConfig.minScale || this.currentScale === ScaleConfig.maxScale;
   }
 
-  zoomOut(cursorPoint?: paper.Point): void {
+  zoomOut(cursorPoint?: Point): void {
     if (this.currentScale === ScaleConfig.minScale) { return; }
     if (this.currentScale !== ScaleConfig.maxScale) {
       this.currentFactor = ScaleConfig.factor;
@@ -124,7 +110,7 @@ export class DigitizerComponent implements OnInit {
     this.isScaleEndRange = this.currentScale === ScaleConfig.minScale || this.currentScale === ScaleConfig.maxScale;
   }
 
-  zoomUp(cursorPoint?: paper.Point): void {
+  zoomUp(cursorPoint?: Point): void {
     if (this.currentScale === ScaleConfig.maxScale) { return; }
     if (this.currentScale !== ScaleConfig.minScale) {
       this.currentFactor = ScaleConfig.factor;
@@ -142,8 +128,17 @@ export class DigitizerComponent implements OnInit {
     this.isScaleEndRange = this.currentScale === ScaleConfig.minScale || this.currentScale === ScaleConfig.maxScale;
   }
 
+  private setImageToCanvas(): void {
+    // キャンバス上のオブジェクトを全てクリア
+    paper.project.activeLayer.removeChildren();
+
+    const raster = new Raster('image');
+    // Rasterオブジェクトの中心をキャンバスの中心に合わせる
+    raster.position = view.center;
+  }
+
   private setEventsToView(): void {
-    const tool = new paper.Tool();
+    const tool = new Tool();
     tool.activate();
     tool.onMouseDrag = (event) => {
       if (!this.file) { return; }

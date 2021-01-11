@@ -12,12 +12,6 @@
 			cursor: crosshair;
 		}
 	}
-	.image-configure {
-		.zoom-slider {
-			display: flex;
-			align-items: center;
-		}
-	}
 	.outrange {
 		color: #ff0000;
 	}
@@ -50,10 +44,6 @@
 	.cordinate {
 		width: 90px;
 	}
-}
-
-mat-slider {
-  width: 300px;
 }
 
 .mat-raised-button {

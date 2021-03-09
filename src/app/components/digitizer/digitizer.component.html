@@ -2,16 +2,20 @@
   <div class="d-flex">
     <div class="col-6 canvas-wrapper ml-2">
       <div>
-        <canvas class="m-0" #canvas (mousewheel)="scalingView($event)" (mousemove)="setCurrentPosision($event)"></canvas>
-        マウス座標：{{ currentX | number: '1.2-2' }}, {{ currentY | number: '1.2-2' }}<br>
+        <canvas class="m-0" #canvas (mousewheel)="scalingView($event)" (mousemove)="setCurrentPosision($event)"
+          [class.onStroke]="isEditAxis && isMouseOnStroke"></canvas>
+        マウス座標：{{ plotX | number: '1.2-2' }}, {{ plotY | number: '1.2-2' }}<br>
         倍率：<span [class.outrange]="isScaleEndRange">x{{ currentScale | number: '1.2-2' }}</span>
         <!-- TODO: ボタンによる拡大縮小は開発時の確認用、不要になったら削除 -->
         <!-- <button (click)="zoomUp()">拡大</button>
         <button (click)="zoomOut()">縮小</button> -->
       </div>
       <div class="d-flex image-configure mt-2">
-        <div class="col-5 p-0">
+        <div class="col-8 p-0">
           <button mat-raised-button (click)="onClickFileInputButton()">画像を読み込む</button>
+          <button mat-raised-button (click)="setAxisRange()" class="ml-2" [class.editingAxis]="isEditAxis" [disabled]="!file" >
+            {{ isEditAxis ? '座標軸の設定終了' : '座標軸を設定する' }}
+          </button>
           <button mat-raised-button class="ml-2" [disabled]="!file" (click)="resetViewConfig()">Viewをリセット</button>
         </div>
       </div>
@@ -22,15 +26,19 @@
           <div>
             <span class="axis-name">X軸</span>
             <div>
-              <label for="x-start" class="mr-1">始点</label><input matInput="number" appearance="outline" id="x-start">
-              <label for="x-end" class="ml-1 mr-1">終点</label><input matInput="number" appearance="outline" id="x-end">
+              <label for="x-start" class="mr-1">左端</label>
+              <input matInput type="number" appearance="outline" id="x-start" [disabled]="!isEditAxis" [(ngModel)]="xmin">
+              <label for="x-end" class="ml-1 mr-1">右端</label>
+              <input matInput type="number" matInput="number" appearance="outline" id="x-end" [disabled]="!isEditAxis" [(ngModel)]="xmax">
             </div>
           </div>
           <div class="mt-1">
             <span class="axis-name">Y軸</span>
             <div>
-              <label for="y-start" class="mr-1">始点</label><input matInput="number" appearance="outline" id="y-start">
-              <label for="y-end" class="ml-1 mr-1">終点</label><input matInput="number" appearance="outline" id="y-end">
+              <label for="y-start" class="mr-1">下端</label>
+              <input matInput type="number" appearance="outline" id="y-start" [disabled]="!isEditAxis" [(ngModel)]="ymin">
+              <label for="y-end" class="ml-1 mr-1">上端</label>
+              <input matInput type="number" appearance="outline" id="y-end" [disabled]="!isEditAxis" [(ngModel)]="ymax">
             </div>
         </div>
         </div>
@@ -45,9 +53,9 @@
             </thead>
             <tbody>
               <tr *ngFor="let data of dataSource; let i = index">
-                <td class="number">{{i}}</td>
-                <td class="cordinate">{{data.x}}</td>
-                <td class="cordinate">{{data.y}}</td>
+                <td class="number">{{ i }}</td>
+                <td class="cordinate">{{ data.x }}</td>
+                <td class="cordinate">{{ data.y }}</td>
               </tr>
             </tbody>
           </table>
@@ -58,4 +66,4 @@
 </div>
 <!-- 画像読込み用 -->
 <input type="file" style="display: none;" #fileInput accept="image/*" (change)="onChangeFileInput($event)">
-<img id="image" style="display: none;" src="{{imgSrc}}">
+<img id="image" style="display: none;" src="{{ imgSrc }}">

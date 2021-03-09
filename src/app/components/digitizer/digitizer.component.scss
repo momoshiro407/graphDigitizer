@@ -15,6 +15,11 @@
 	.outrange {
 		color: #ff0000;
 	}
+		canvas.onStroke {
+		&:hover {
+			cursor: move;
+		}
+	}
 }
 
 .information-wrapper {
@@ -50,6 +55,9 @@
 	color: #ffffff;
 	background-color: #299c33;
 	outline: none;
+	&.editingAxis {
+		background-color: #f53c3c;
+	}
 }
 
 .mat-input-element {

@@ -11,6 +11,9 @@
 		&.isPlotting:hover {
 			cursor: crosshair;
 		}
+		&.onSegment:hover {
+			cursor: move;
+		}
 	}
 	.outrange {
 		color: #ff0000;

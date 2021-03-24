@@ -36,11 +36,13 @@ export class DigitizerComponent implements OnInit {
   isScaleEndRange = false;
   isEditAxis = false;
   isMouseOnStroke = false;
-  isMouseDragging = false;
+  isItemDragging = false;
   isPlotting = false;
   isViewDragging = false;
+  isMouseOnSegment = false;
   // オンマウス状態のパスの子オブジェクト
   activeLocation: any;
+  activeSegment: any;
   // レイヤー・グループ
   backgroundLayer: Layer;
   plottingLayer: Layer;
@@ -218,7 +220,7 @@ export class DigitizerComponent implements OnInit {
     const tool = new Tool();
     tool.onMouseDrag = (event) => {
       // 画像読み込み前、または座標
-      if (!this.file || !!this.activeLocation) { return; }
+      if (!this.file || !!this.activeLocation || this.isMouseOnSegment) { return; }
       this.isViewDragging = true;
       // delta = 最後にクリックされた位置の座標 - 現在地の座標
       const delta = event.downPoint.subtract(event.point);
@@ -284,7 +286,7 @@ export class DigitizerComponent implements OnInit {
   private setMouseEventToRangePath(paths: any[]): void {
     paths.forEach(path => {
       path.onMouseMove = (event) => {
-        // セグメントとストロークの当たり判定のみを有効にする
+        // ストロークの当たり判定のみを有効にする
         const hitOptions = {
           stroke: true,
           tolerance: 1,
@@ -295,7 +297,7 @@ export class DigitizerComponent implements OnInit {
       };
 
       path.onMouseDrag = (event) => {
-        this.isMouseDragging = true;
+        this.isItemDragging = true;
         // 鉛直方向のpath
         if (path.bounds.width === 0) {
           path.bounds.left = path.bounds.right = this.currentX;
@@ -307,13 +309,13 @@ export class DigitizerComponent implements OnInit {
       };
 
       path.onMouseUp = () => {
-        this.isMouseDragging = false;
+        this.isItemDragging = false;
       };
 
       path.onMouseLeave = () => {
         if (this.activeLocation) {
           // セグメントをドラッグしている途中の場合は処理を行わない
-          if (this.isMouseDragging) { return; }
+          if (this.isItemDragging) { return; }
           // セグメントからマウスが離れた場合はactiveItemとオンマウスのフラグをクリアする
           this.activeLocation = null;
           this.isMouseOnStroke = false;
@@ -344,19 +346,20 @@ export class DigitizerComponent implements OnInit {
     this.plottingLayer.removeChildren();
     this.unsettledPath = new Path();
     this.path = new Path();
+    this.setMouseEventToPlottedPath();
     this.pathGroup = new Group();
-    this.pathGroup.addChildren([
+    this.pathGroup.addChild(this.path);
+    this.plottingLayer.addChildren([
+      this.pathGroup,
       this.unsettledPath,
-      this.path,
     ]);
-    this.plottingLayer.addChild(this.pathGroup);
   }
 
   private plotMarker(insertIndex?: number): void {
     // 正方形のマーカー（パスの頂点を明示する印）を生成する
     const marker = new Shape.Circle({
       center: new Point(this.currentX, this.currentY),
-      size: 5,
+      size: 8,
       strokeColor: '#ff0000',
     });
     if (insertIndex) {
@@ -387,5 +390,53 @@ export class DigitizerComponent implements OnInit {
     this.unsettledPath.add(new Point(lastSegment.x, lastSegment.y));
     // 未確定パスの終点
     this.unsettledPath.add(new Point(this.currentX, this.currentY));
+  }
+
+  private setMouseEventToPlottedPath(): void {
+    this.path.onMouseMove = (event) => {
+      if (this.isPlotting) { return; }
+      // セグメントとストロークの当たり判定のみを有効にする
+      const hitOptions = {
+        fill: false,
+        stroke: false,
+        segments: true,
+        tolerance: 1,
+      };
+      const hitResult = paper.project.hitTest(event.point, hitOptions);
+      this.activeSegment = hitResult && hitResult.segment;
+      this.isMouseOnSegment = !!this.activeSegment;
+    };
+
+    this.path.onMouseDrag = (event) => {
+      if (this.isPlotting) { return; }
+      if (!this.activeSegment) { return; }
+      const index = this.activeSegment.index;
+      this.isItemDragging = true;
+      // パスのセグメントの座標を更新する
+      this.activeSegment.point.x = event.point.x;
+      this.activeSegment.point.y = event.point.y;
+      // パス頂点のマーカーの座標を更新する
+      this.pathGroup.children[index + 1].position.x = event.point.x;
+      this.pathGroup.children[index + 1].position.y = event.point.y;
+      // パスの頂点座標の配列を更新する
+      this.vertexList[index].x = this.plotX;
+      this.vertexList[index].y = this.plotY;
+    };
+
+    this.path.onMouseUp = () => {
+      if (this.isPlotting) { return; }
+      // ドラッグが終了した場合はactiveItemとオンマウス、ドラッグのフラグをクリアする
+      this.activeSegment = null;
+      this.isMouseOnSegment = false;
+      this.isItemDragging = false;
+    };
+
+    this.path.onMouseLeave = () => {
+      if (this.isPlotting || this.isItemDragging) { return; }
+      // セグメントからマウスが離れた場合はactiveItemとオンマウスのフラグをクリアする
+      this.activeSegment = null;
+      this.isMouseOnSegment = false;
+      this.isItemDragging = false;
+    };
   }
 }

@@ -1,7 +1,8 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import * as paper from 'paper';
-import { Raster, Matrix, Path } from 'paper';
+import { Raster, Path, Shape, Group } from 'paper';
 import { view, Tool, Point, Layer } from 'paper/dist/paper-full';
+import { Vertex } from '../../models/vertex';
 
 enum ScaleConfig {
   factor = 1.05,
@@ -18,17 +19,13 @@ export class DigitizerComponent implements OnInit {
   @ViewChild('canvas', { static: true }) canvas: ElementRef<HTMLCanvasElement>;
   @ViewChild('fileInput', { static: false }) fileInput: ElementRef;
 
-  dataSource = [
-    { n: 1, x: 12345, y: 12345 },
-  ];
-
   file: File = null;
   imgSrc: string | ArrayBuffer = '';
   currentX = 0;
   currentY = 0;
   plotX = 0;
   plotY = 0;
-  currentScale = 1;
+  scale = 1;
   currentFactor = ScaleConfig.factor;
   // 座標軸関係
   xmin = 0;
@@ -40,15 +37,30 @@ export class DigitizerComponent implements OnInit {
   isEditAxis = false;
   isMouseOnStroke = false;
   isMouseDragging = false;
+  isPlotting = false;
+  isViewDragging = false;
   // オンマウス状態のパスの子オブジェクト
   activeLocation: any;
   // レイヤー・グループ
-  workingLayer: Layer;
+  backgroundLayer: Layer;
+  plottingLayer: Layer;
   settingLayer: Layer;
-  // その他
-  defaultStrokeWidth = 3;
+  // プロット関係
+  path: any;
+  pathGroup: any;
+  unsettledPath: any;
+  vertexList: Vertex[] = [];
 
   constructor() { }
+
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent): void {
+    if (event.key !== 'Escape') { return; }
+    if (this.file && this.path.segments.length > 0) {
+      this.isPlotting = false;
+      this.unsettledPath.removeSegments();
+    }
+  }
 
   ngOnInit(): void {
     paper.setup(this.canvas.nativeElement);
@@ -93,13 +105,18 @@ export class DigitizerComponent implements OnInit {
     } else {
       this.zoomOut(cursorPoint); // 縮小
     }
+    this.scale = view.zoom;
     this.updateRangePath();
   }
 
   setCurrentPosision(event): void {
+    if (!this.file) { return; }
     const rect = event.target.getBoundingClientRect();
     const preX = this.currentX = view.viewToProject(event.clientX - rect.left).x;
     const preY = this.currentY = view.viewToProject(event.clientY - rect.top).y;
+    if (this.isPlotting) {
+      this.drawUnsettledLine();
+    }
 
     // viewの座標系をプロット座標系に変換する
     const leftPath = this.settingLayer.children[0];
@@ -120,70 +137,80 @@ export class DigitizerComponent implements OnInit {
 
   resetViewConfig(): void {
     view.matrix.reset();
-    this.currentScale = view.zoom;
+    this.scale = view.zoom;
     this.currentFactor = ScaleConfig.factor;
     this.currentX = this.currentY = 0;
-    this.isScaleEndRange = this.currentScale === ScaleConfig.minScale || this.currentScale === ScaleConfig.maxScale;
+    this.isScaleEndRange = false;
     this.updateRangePath();
   }
 
   zoomOut(cursorPoint?: Point): void {
-    if (this.currentScale === ScaleConfig.minScale) { return; }
-    if (this.currentScale !== ScaleConfig.maxScale) {
+    if (view.zoom === ScaleConfig.minScale) { return; }
+    if (view.zoom !== ScaleConfig.maxScale) {
       this.currentFactor = ScaleConfig.factor;
     }
-    // 現在のscalに現在のfactorを除算した結果
-    const nextScale = this.currentScale / this.currentFactor;
+    const nextScale = view.zoom / this.currentFactor;
     // scaleの下限値より小さくなってしまう場合は、scaleが下限値になるfactorを逆算する
     if (nextScale < ScaleConfig.minScale) {
-      this.currentFactor = this.currentScale / ScaleConfig.minScale;
+      this.currentFactor = view.zoom / ScaleConfig.minScale;
     }
 
     // 縮小処理を実行
-    const matrix = new Matrix(1, 0, 0, 1, 0, 0);
-    view.transform(matrix.scale(1 / this.currentFactor, cursorPoint || view.center));
-    this.currentScale = Math.max(ScaleConfig.minScale , nextScale);
-    this.isScaleEndRange = this.currentScale === ScaleConfig.minScale || this.currentScale === ScaleConfig.maxScale;
+    view.matrix.scale(1 / this.currentFactor, cursorPoint || view.center);
+    this.isScaleEndRange = view.zoom === ScaleConfig.minScale;
   }
 
   zoomUp(cursorPoint?: Point): void {
-    if (this.currentScale === ScaleConfig.maxScale) { return; }
-    if (this.currentScale !== ScaleConfig.minScale) {
+    if (view.zoom === ScaleConfig.maxScale) { return; }
+    if (view.zoom !== ScaleConfig.minScale) {
       this.currentFactor = ScaleConfig.factor;
     }
-    const nextScale = this.currentScale * this.currentFactor;
+    const nextScale = view.zoom * this.currentFactor;
     // scaleの上限値より大きくなってしまう場合は、scaleが上限値になるfactorを逆算する
     if (nextScale > ScaleConfig.maxScale) {
-      this.currentFactor = ScaleConfig.maxScale / this.currentScale;
+      this.currentFactor = ScaleConfig.maxScale / view.zoom;
     }
 
     // 拡大処理を実行
-    const matrix = new Matrix(1, 0, 0, 1, 0, 0);
-    view.transform(matrix.scale(this.currentFactor, cursorPoint || view.center));
-    this.currentScale = Math.min(ScaleConfig.maxScale, nextScale);
-    this.isScaleEndRange = this.currentScale === ScaleConfig.minScale || this.currentScale === ScaleConfig.maxScale;
+    view.matrix.scale(this.currentFactor, cursorPoint || view.center);
+    this.isScaleEndRange = view.zoom === ScaleConfig.maxScale;
   }
 
   setAxisRange(): void {
     this.isEditAxis = !this.isEditAxis;
     this.settingLayer.locked = !this.isEditAxis;
     this.settingLayer.visible = this.isEditAxis;
-    this.workingLayer.locked = this.isEditAxis;
+    this.backgroundLayer.locked = this.isEditAxis;
+    this.plottingLayer.locked = this.isEditAxis;
+  }
+
+  onClickCanvas($event): void {
+    if (this.isViewDragging || !this.file || !this.isPlotting) { return; }
+    // パスの頂点座標の配列にクリック位置のx, y座標を追加する
+    this.vertexList.push({
+      x: this.plotX,
+      y: this.plotY,
+    });
+    this.plotMarker();
+    this.drawLine();
   }
 
   private setImageToCanvas(): void {
-    // キャンバス上のオブジェクトを全てクリア
-    this.workingLayer.removeChildren();
-    // viewをクリア
+    // 背景画像をクリア
+    this.backgroundLayer.removeChildren();
+    // viewの表示設定をクリア
     this.resetViewConfig();
     // 座標軸設定パスをリセット
     this.setRangePath();
+    // プロット用パスをリセット
+    this.initialPathItemsSetting();
 
     const raster = new Raster('image');
     // Rasterオブジェクトの中心をキャンバスの中心に合わせる
     raster.position = view.center;
     // 作業レイヤーにRasterオブジェクトを追加する
-    this.workingLayer.addChild(raster);
+    this.backgroundLayer.addChild(raster);
+    this.isPlotting = true;
   }
 
   private setEventsToView(): void {
@@ -191,15 +218,22 @@ export class DigitizerComponent implements OnInit {
     tool.onMouseDrag = (event) => {
       // 画像読み込み前、または座標
       if (!this.file || !!this.activeLocation) { return; }
+      this.isViewDragging = true;
       // delta = 最後にクリックされた位置の座標 - 現在地の座標
       const delta = event.downPoint.subtract(event.point);
       view.scrollBy(delta);
       this.updateRangePath();
     };
+    tool.onMouseUp = (event) => {
+      if (this.isViewDragging) {
+        this.isViewDragging = false;
+      }
+    };
   }
 
   private setLayers(): void {
-    this.workingLayer = new Layer();
+    this.backgroundLayer = new Layer();
+    this.plottingLayer = new Layer();
     this.settingLayer = new Layer({
       visible: false,
     });
@@ -211,9 +245,8 @@ export class DigitizerComponent implements OnInit {
     const bounds = view.bounds;
     // 全パス共通
     const commonSetting = {
-      strokeWidth: this.defaultStrokeWidth,
+      strokeWidth: 2,
       strokeColor: '#9aa1ff',
-      strokeScaling: false,
       opacity: 0.7,
     };
     const leftPath = new Path.Line({
@@ -304,5 +337,54 @@ export class DigitizerComponent implements OnInit {
         path.bounds.right = view.bounds.right;
       }
     });
+  }
+
+  private initialPathItemsSetting(): void {
+    this.plottingLayer.removeChildren();
+    this.unsettledPath = new Path();
+    this.path = new Path();
+    this.pathGroup = new Group();
+    this.pathGroup.addChildren([
+      this.unsettledPath,
+      this.path,
+    ]);
+    this.plottingLayer.addChild(this.pathGroup);
+  }
+
+  private plotMarker(insertIndex?: number): void {
+    // 正方形のマーカー（パスの頂点を明示する印）を生成する
+    const marker = new Shape.Circle({
+      center: new Point(this.currentX, this.currentY),
+      size: 5,
+      strokeColor: '#ff0000',
+    });
+    if (insertIndex) {
+      // 頂点追加処理の場合、パスグループの既存の子要素配列の間に挿入する
+      this.pathGroup.insertChild(insertIndex + 1, marker);
+    } else {
+      // 多角形を閉じる前はパスグループの子要素配列の末尾に追加していく
+      this.pathGroup.addChild(marker);
+    }
+  }
+
+  private drawLine(): void {
+    this.path.strokeColor = '#ff0000';
+    this.path.strokeWidth = 1;
+    this.path.add(new Point(this.currentX, this.currentY));
+    this.unsettledPath.removeSegments();
+  }
+
+  private drawUnsettledLine(): void {
+    if (this.path.segments.length === 0 || !this.path.lastSegment || !this.isPlotting) { return; }
+    this.unsettledPath.removeSegments();
+    // 未確定パスの設定
+    this.unsettledPath.strokeColor = 'rgb(0, 0, 0, 0.1)';
+    this.unsettledPath.strokeWidth = 1;
+    // 確定パスの最先端にある頂点座標を取得する
+    const lastSegment = this.path.lastSegment.point;
+    // 未確定パスの始点
+    this.unsettledPath.add(new Point(lastSegment.x, lastSegment.y));
+    // 未確定パスの終点
+    this.unsettledPath.add(new Point(this.currentX, this.currentY));
   }
 }

@@ -178,13 +178,14 @@ export class DigitizerComponent implements OnInit {
 
   setAxisRange(): void {
     this.isEditAxis = !this.isEditAxis;
+    this.isPlotting = !this.isEditAxis;
     this.settingLayer.locked = !this.isEditAxis;
     this.settingLayer.visible = this.isEditAxis;
     this.backgroundLayer.locked = this.isEditAxis;
     this.plottingLayer.locked = this.isEditAxis;
   }
 
-  onClickCanvas($event): void {
+  onClickCanvas(): void {
     if (this.isViewDragging || !this.file || !this.isPlotting) { return; }
     // パスの頂点座標の配列にクリック位置のx, y座標を追加する
     this.vertexList.push({

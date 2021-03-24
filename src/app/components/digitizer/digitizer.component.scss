@@ -8,7 +8,7 @@
     border: solid 1px #979797;
     width: 700px;
     height: 500px;
-		&:hover {
+		&.isPlotting:hover {
 			cursor: crosshair;
 		}
 	}
@@ -35,6 +35,11 @@
 		padding: 10px;
 		.axis-name {
 			font-weight: bold;
+		}
+		input[type="number"]::-webkit-outer-spin-button,
+		input[type="number"]::-webkit-inner-spin-button {
+			-webkit-appearance: none;
+			margin: 0;
 		}
 	}
 	.coordinate-info {

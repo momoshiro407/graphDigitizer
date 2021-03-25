@@ -4,7 +4,7 @@
       <div>
         <canvas class="m-0" #canvas (mousewheel)="scalingView($event)" (mousemove)="setCurrentPosision($event)"
           (mouseup)="onClickCanvas()" [class.onStroke]="isEditAxis && isMouseOnStroke" [class.isPlotting]="isPlotting"
-          [class.onSegment]="isMouseOnSegment">
+          [class.onSegment]="isMouseOnSegment" (contextmenu)="openMenu($event)">
         </canvas>
         マウス座標：{{ plotX | number: '1.2-2' }}, {{ plotY | number: '1.2-2' }}<br>
         倍率：<span [class.outrange]="isScaleEndRange">x{{ scale | number: '1.2-2' }}</span>
@@ -69,3 +69,13 @@
 <!-- 画像読込み用 -->
 <input type="file" style="display: none;" #fileInput accept="image/*" (change)="onChangeFileInput($event)">
 <img id="image" style="display: none;" src="{{ imgSrc }}">
+<!-- プロット点追加・削除実行用コンテキストメニュー -->
+<div style="visibility: hidden; position: fixed;" [matMenuTriggerFor]="contextMenu" (menuClosed)="afterMenuClosed()"
+  [style.left]="contextMenuPosition.x" [style.top]="contextMenuPosition.y">
+</div>
+<mat-menu #contextMenu="matMenu">
+  <ng-template matMenuContent class="context-menu">
+    <div mat-menu-item (click)="addSegment()" [class.disabled]="!isMouseOnStroke">頂点の追加</div>
+    <div mat-menu-item (click)="removeSegment()" [class.disabled]="!isMouseOnSegment">頂点の削除</div>
+  </ng-template>
+</mat-menu>

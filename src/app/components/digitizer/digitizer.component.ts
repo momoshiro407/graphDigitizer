@@ -3,6 +3,7 @@ import * as paper from 'paper';
 import { Raster, Path, Shape, Group } from 'paper';
 import { view, Tool, Point, Layer } from 'paper/dist/paper-full';
 import { Vertex } from '../../models/vertex';
+import { MatMenuTrigger } from '@angular/material/menu';
 
 enum ScaleConfig {
   factor = 1.05,
@@ -18,11 +19,16 @@ enum ScaleConfig {
 export class DigitizerComponent implements OnInit {
   @ViewChild('canvas', { static: true }) canvas: ElementRef<HTMLCanvasElement>;
   @ViewChild('fileInput', { static: false }) fileInput: ElementRef;
+  @ViewChild(MatMenuTrigger) contextMenu: MatMenuTrigger;
 
   file: File = null;
   imgSrc: string | ArrayBuffer = '';
   currentX = 0;
   currentY = 0;
+  editStartViewX: number;
+  editStartViewY: number;
+  editStartPlotX: number;
+  editStartPlotY: number;
   plotX = 0;
   plotY = 0;
   scale = 1;
@@ -52,6 +58,9 @@ export class DigitizerComponent implements OnInit {
   pathGroup: any;
   unsettledPath: any;
   vertexList: Vertex[] = [];
+  // コンテキストメニュー関係
+  contextMenuPosition = { x: '0px', y: '0px' };
+  isEditMenuOpened = false;
 
   constructor() { }
 
@@ -114,26 +123,13 @@ export class DigitizerComponent implements OnInit {
   setCurrentPosision(event): void {
     if (!this.file) { return; }
     const rect = event.target.getBoundingClientRect();
-    const preX = this.currentX = view.viewToProject(event.clientX - rect.left).x;
-    const preY = this.currentY = view.viewToProject(event.clientY - rect.top).y;
+    this.currentX = view.viewToProject(event.clientX - rect.left).x;
+    this.currentY = view.viewToProject(event.clientY - rect.top).y;
+    const plotXY = this.convertViewToPlot(this.currentX, this.currentY);
+    this.plotX = plotXY.x;
+    this.plotY = plotXY.y;
     if (this.isPlotting) {
       this.drawUnsettledLine();
-    }
-
-    // viewの座標系をプロット座標系に変換する
-    const leftPath = this.settingLayer.children[0];
-    const rightPath = this.settingLayer.children[1];
-    const topPath = this.settingLayer.children[2];
-    const bottomPath = this.settingLayer.children[3];
-    if (this.xmax - this.xmin !== 0) {
-      const scaleX = Math.abs((this.xmax - this.xmin) / (leftPath.bounds.left - rightPath.bounds.right));
-      const diffX = preX - leftPath.bounds.left;
-      this.plotX = leftPath.bounds.left < rightPath.bounds.right ? this.xmin + diffX * scaleX : this.xmax + diffX * scaleX;
-    }
-    if (this.ymin - this.ymax !== 0) {
-      const scaleY = Math.abs((this.ymin - this.ymax) / (bottomPath.bounds.bottom - topPath.bounds.top));
-      const diffY = preY - bottomPath.bounds.bottom;
-      this.plotY = bottomPath.bounds.bottom > topPath.bounds.top ? this.ymin - diffY * scaleY : this.ymax - diffY * scaleY;
     }
   }
 
@@ -196,6 +192,47 @@ export class DigitizerComponent implements OnInit {
     });
     this.plotMarker();
     this.drawLine();
+  }
+
+  openMenu(event: MouseEvent): boolean {
+    if (this.isPlotting || (!this.isMouseOnSegment && !this.isMouseOnStroke)) { return true; }
+    this.isEditMenuOpened = true;
+    // デフォルトのコンテキストメニューを開かないようにする
+    event.preventDefault();
+    // 右クリックした時点のマウスポインターの座標を保持する
+    this.editStartViewX = this.currentX;
+    this.editStartViewY = this.currentY;
+    const editStartPlotXY = this.convertViewToPlot(this.currentX, this.currentY);
+    this.editStartPlotX = editStartPlotXY.x;
+    this.editStartPlotY = editStartPlotXY.y;
+    this.contextMenuPosition.x = event.clientX + 'px';
+    this.contextMenuPosition.y = event.clientY + 'px';
+    this.contextMenu.openMenu();
+  }
+
+  afterMenuClosed(): void {
+    this.isEditMenuOpened = false;
+    this.activeSegment = null;
+    this.activeLocation = null;
+    this.isMouseOnSegment = false;
+    this.isMouseOnStroke = false;
+  }
+
+  addSegment(): void {
+    const insertIndex = this.activeLocation.index + 1;
+    this.path.insert(insertIndex, new Point(this.editStartViewX, this.editStartViewY));
+    this.vertexList.splice(insertIndex, 0, { x: this.editStartPlotX, y: this.editStartPlotY });
+    this.plotMarker(insertIndex);
+    this.contextMenu.closeMenu();
+  }
+
+  removeSegment(): void {
+    const removeIndex = this.activeSegment.index;
+    this.path.removeSegment(removeIndex);
+    this.vertexList.splice(removeIndex, 1);
+    this.pathGroup.removeChildren(removeIndex + 1, removeIndex + 2);
+    this.contextMenu.closeMenu();
+    this.isMouseOnSegment = false;
   }
 
   private setImageToCanvas(): void {
@@ -355,6 +392,28 @@ export class DigitizerComponent implements OnInit {
     ]);
   }
 
+  private convertViewToPlot(preX: number, preY: number): Point {
+    // viewの座標系をプロット座標系に変換する
+    const leftPath = this.settingLayer.children[0];
+    const rightPath = this.settingLayer.children[1];
+    const topPath = this.settingLayer.children[2];
+    const bottomPath = this.settingLayer.children[3];
+    let plotX = 0;
+    let plotY = 0;
+    if (this.xmax - this.xmin !== 0) {
+      const scaleX = Math.abs((this.xmax - this.xmin) / (leftPath.bounds.left - rightPath.bounds.right));
+      const diffX = preX - leftPath.bounds.left;
+      plotX = leftPath.bounds.left < rightPath.bounds.right ? this.xmin + diffX * scaleX : this.xmax + diffX * scaleX;
+    }
+    if (this.ymin - this.ymax !== 0) {
+      const scaleY = Math.abs((this.ymin - this.ymax) / (bottomPath.bounds.bottom - topPath.bounds.top));
+      const diffY = preY - bottomPath.bounds.bottom;
+      plotY = bottomPath.bounds.bottom > topPath.bounds.top ? this.ymin - diffY * scaleY : this.ymax - diffY * scaleY;
+    }
+
+    return new Point(plotX, plotY);
+  }
+
   private plotMarker(insertIndex?: number): void {
     // 正方形のマーカー（パスの頂点を明示する印）を生成する
     const marker = new Shape.Circle({
@@ -394,17 +453,19 @@ export class DigitizerComponent implements OnInit {
 
   private setMouseEventToPlottedPath(): void {
     this.path.onMouseMove = (event) => {
-      if (this.isPlotting) { return; }
+      if (this.isPlotting || this.isEditMenuOpened) { return; }
       // セグメントとストロークの当たり判定のみを有効にする
       const hitOptions = {
         fill: false,
-        stroke: false,
+        stroke: true,
         segments: true,
         tolerance: 1,
       };
       const hitResult = paper.project.hitTest(event.point, hitOptions);
       this.activeSegment = hitResult && hitResult.segment;
       this.isMouseOnSegment = !!this.activeSegment;
+      this.activeLocation = hitResult && hitResult.location;
+      this.isMouseOnStroke = !!this.activeLocation;
     };
 
     this.path.onMouseDrag = (event) => {
@@ -424,18 +485,22 @@ export class DigitizerComponent implements OnInit {
     };
 
     this.path.onMouseUp = () => {
-      if (this.isPlotting) { return; }
-      // ドラッグが終了した場合はactiveItemとオンマウス、ドラッグのフラグをクリアする
-      this.activeSegment = null;
-      this.isMouseOnSegment = false;
+      if (this.isPlotting || !this.activeSegment) { return; }
+      // プロット点用コンテキストメニューが開かれていない場合だけactiveItemとオンマウス、ドラッグのフラグをクリアする
+      if (!this.isEditMenuOpened) {
+        this.activeSegment = null;
+        this.isMouseOnSegment = false;
+      }
       this.isItemDragging = false;
     };
 
     this.path.onMouseLeave = () => {
-      if (this.isPlotting || this.isItemDragging) { return; }
+      if (this.isPlotting || this.isItemDragging || this.isEditMenuOpened) { return; }
       // セグメントからマウスが離れた場合はactiveItemとオンマウスのフラグをクリアする
       this.activeSegment = null;
+      this.activeLocation = null;
       this.isMouseOnSegment = false;
+      this.isMouseOnStroke = false;
       this.isItemDragging = false;
     };
   }

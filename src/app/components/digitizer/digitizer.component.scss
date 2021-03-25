@@ -102,3 +102,25 @@ table {
 		}
 	}
 }
+
+::ng-deep .mat-menu-panel {
+  width: 100px;
+  height: 60px;
+  background-color: #ffffff;
+  .mat-menu-item {
+    font-size: 12px;
+    text-align: center;
+    line-height: 25px;
+    height: 25px;
+    &:hover {
+      // .mat-menu-itemの要素はデフォルトでマウスカーソルがpointerになる
+      color: #ffffff;
+      background-color: #5e5e5e;
+    }
+  }
+}
+
+.disabled {
+  pointer-events: none;
+  color: #dfdfdf;
+}

@@ -46,6 +46,7 @@ export class DigitizerComponent implements OnInit {
   isPlotting = false;
   isViewDragging = false;
   isMouseOnSegment = false;
+  isPathSelected = false;
   // オンマウス状態のパスの子オブジェクト
   activeLocation: any;
   activeSegment: any;
@@ -66,10 +67,30 @@ export class DigitizerComponent implements OnInit {
 
   @HostListener('document:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent): void {
-    if (event.key !== 'Escape') { return; }
-    if (this.file && this.path.segments.length > 0) {
-      this.isPlotting = false;
-      this.unsettledPath.removeSegments();
+    // プロット可能状態の切り替え
+    if (event.key === 'Escape') {
+      if (this.file && this.path.segments.length > 0) {
+        this.isPlotting = !this.isPlotting;
+        if (this.isPlotting) {
+          this.drawUnsettledLine();
+        } else {
+          this.unsettledPath.removeSegments();
+        }
+      }
+    }
+    // プロットパスの削除処理
+    if (event.key === 'Backspace') {
+      if (this.isPathSelected && !this.isEditAxis) {
+        if (confirm('パスを削除してよろしいですか？')) {
+          // パスのセグメントを削除
+          this.path.removeSegments();
+          // プロットマーカーはindex=1以降に格納されているので全て削除
+          this.pathGroup.children.splice(1);
+          this.path.selected = false;
+          this.isPathSelected = false;
+          this.isPlotting = true;
+        }
+      }
     }
   }
 
@@ -502,6 +523,13 @@ export class DigitizerComponent implements OnInit {
       this.isMouseOnSegment = false;
       this.isMouseOnStroke = false;
       this.isItemDragging = false;
+    };
+
+    this.path.onClick = () => {
+      if (this.isPlotting) { return; }
+      this.isPathSelected = !this.isPathSelected;
+      // パスの選択状態を切り替える
+      this.path.selected = !this.path.selected;
     };
   }
 }

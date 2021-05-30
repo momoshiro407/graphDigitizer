@@ -13,12 +13,13 @@
         <button (click)="zoomOut()">縮小</button> -->
       </div>
       <div class="d-flex image-configure mt-2">
-        <div class="col-8 p-0">
+        <div class="col-10 p-0">
           <button mat-raised-button (click)="onClickFileInputButton()">画像を読み込む</button>
           <button mat-raised-button (click)="setAxisRange()" class="ml-2" [class.editingAxis]="isEditAxis" [disabled]="!file" >
             {{ isEditAxis ? '座標軸の設定終了' : '座標軸を設定する' }}
           </button>
           <button mat-raised-button class="ml-2" [disabled]="!file" (click)="resetViewConfig()">Viewをリセット</button>
+          <button mat-raised-button class="ml-2 export-csv" [disabled]="!file" (click)="exportCSV()">CSV出力</button>
         </div>
       </div>
     </div>

@@ -62,6 +62,8 @@ export class DigitizerComponent implements OnInit {
   // コンテキストメニュー関係
   contextMenuPosition = { x: '0px', y: '0px' };
   isEditMenuOpened = false;
+  // CSV出力関係
+  outFileName = 'coordinate.csv';
 
   constructor() { }
 
@@ -253,6 +255,33 @@ export class DigitizerComponent implements OnInit {
     this.pathGroup.removeChildren(removeIndex + 1, removeIndex + 2);
     this.contextMenu.closeMenu();
     this.isMouseOnSegment = false;
+  }
+
+  exportCSV(): void {
+    if (this.vertexList.length === 0) {
+      alert('座標点がプロットされていません。');
+      return;
+    }
+
+    const delimiter = ',';
+    const header = ['No', 'X', 'Y'].join(delimiter) + '\n';
+    const body = this.vertexList.map((vertex, index) => {
+      return index + delimiter + Object.keys(vertex).map(key => {
+        return vertex[key].toFixed(3);
+      }).join(delimiter);
+    }).join('\n');
+
+    const csvString = header + body;
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;'});
+    const url = window.URL.createObjectURL(blob);
+
+    const link: HTMLAnchorElement = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', this.outFileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   private setImageToCanvas(): void {

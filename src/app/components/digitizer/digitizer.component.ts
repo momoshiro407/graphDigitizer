@@ -98,7 +98,6 @@ export class DigitizerComponent implements OnInit {
     paper.setup(this.canvas.nativeElement);
     this.setEventsToView();
     this.setLayers();
-    this.setRangePath();
   }
 
   onChangeFileInput(event): void {
@@ -200,7 +199,7 @@ export class DigitizerComponent implements OnInit {
     this.isPlotting = !this.isEditAxis;
     this.settingLayer.locked = !this.isEditAxis;
     this.settingLayer.visible = this.isEditAxis;
-    this.backgroundLayer.locked = this.isEditAxis;
+    // this.backgroundLayer.locked = this.isEditAxis;
     this.plottingLayer.locked = this.isEditAxis;
   }
 
@@ -372,9 +371,9 @@ export class DigitizerComponent implements OnInit {
 
       path.onMouseLeave = () => {
         if (this.activeLocation) {
-          // セグメントをドラッグしている途中の場合は処理を行わない
+          // パスをドラッグしている途中の場合は処理を行わない
           if (this.isItemDragging) { return; }
-          // セグメントからマウスが離れた場合はactiveItemとオンマウスのフラグをクリアする
+          // パスからマウスが離れた場合はactiveItemとオンマウスのフラグをクリアする
           this.activeLocation = null;
           this.isMouseOnStroke = false;
         }
@@ -421,12 +420,12 @@ export class DigitizerComponent implements OnInit {
     const bottomPath = this.settingLayer.children[3];
     let plotX = 0;
     let plotY = 0;
-    if (this.xmax - this.xmin !== 0) {
+    if (this.xmax !== this.xmin) {
       const scaleX = Math.abs((this.xmax - this.xmin) / (leftPath.bounds.left - rightPath.bounds.right));
       const diffX = preX - leftPath.bounds.left;
       plotX = leftPath.bounds.left < rightPath.bounds.right ? this.xmin + diffX * scaleX : this.xmax + diffX * scaleX;
     }
-    if (this.ymin - this.ymax !== 0) {
+    if (this.ymin !== this.ymax) {
       const scaleY = Math.abs((this.ymin - this.ymax) / (bottomPath.bounds.bottom - topPath.bounds.top));
       const diffY = preY - bottomPath.bounds.bottom;
       plotY = bottomPath.bounds.bottom > topPath.bounds.top ? this.ymin - diffY * scaleY : this.ymax - diffY * scaleY;

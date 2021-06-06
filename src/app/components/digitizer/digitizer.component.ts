@@ -87,10 +87,11 @@ export class DigitizerComponent implements OnInit {
           this.path.removeSegments();
           // プロットマーカーはindex=1以降に格納されているので全て削除
           this.pathGroup.children.splice(1);
-          // 座標点リストをリセット
+          // 各種変数や状態などをリセット
           this.vertexList = [];
           this.path.selected = false;
           this.isPlotting = true;
+          this.activeLocation = null;
         }
       }
     }
@@ -303,7 +304,7 @@ export class DigitizerComponent implements OnInit {
   private setEventsToView(): void {
     const tool = new Tool();
     tool.onMouseDrag = (event) => {
-      // 画像読み込み前、または座標
+      // 画像読み込み前、またはカーソルが座標点パス上にある場合は背景画像の平行移動は無効
       if (!this.file || !!this.activeLocation || this.isMouseOnSegment) { return; }
       this.isViewDragging = true;
       // delta = 最後にクリックされた位置の座標 - 現在地の座標

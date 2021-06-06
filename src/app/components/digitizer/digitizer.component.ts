@@ -43,10 +43,9 @@ export class DigitizerComponent implements OnInit {
   isEditAxis = false;
   isMouseOnStroke = false;
   isItemDragging = false;
-  isPlotting = false;
+  isPlotting = true;
   isViewDragging = false;
   isMouseOnSegment = false;
-  isPathSelected = false;
   // オンマウス状態のパスの子オブジェクト
   activeLocation: any;
   activeSegment: any;
@@ -71,25 +70,26 @@ export class DigitizerComponent implements OnInit {
   handleKeyboardEvent(event: KeyboardEvent): void {
     // プロット可能状態の切り替え
     if (event.key === 'Escape') {
-      if (this.file && this.path.segments.length > 0) {
+      if (this.file && !this.isEditAxis && this.path.segments.length > 0) {
         this.isPlotting = !this.isPlotting;
-        if (this.isPlotting) {
-          this.drawUnsettledLine();
-        } else {
+        this.drawUnsettledLine();
+        // プロット中断状態なら未確定パスを削除
+        if (!this.isPlotting) {
           this.unsettledPath.removeSegments();
         }
       }
     }
     // プロットパスの削除処理
     if (event.key === 'Backspace') {
-      if (this.isPathSelected && !this.isEditAxis) {
+      if (this.path.selected && !this.isEditAxis) {
         if (confirm('パスを削除してよろしいですか？')) {
           // パスのセグメントを削除
           this.path.removeSegments();
           // プロットマーカーはindex=1以降に格納されているので全て削除
           this.pathGroup.children.splice(1);
+          // 座標点リストをリセット
+          this.vertexList = [];
           this.path.selected = false;
-          this.isPathSelected = false;
           this.isPlotting = true;
         }
       }
@@ -150,9 +150,7 @@ export class DigitizerComponent implements OnInit {
     const plotXY = this.convertViewToPlot(this.currentX, this.currentY);
     this.plotX = plotXY.x;
     this.plotY = plotXY.y;
-    if (this.isPlotting) {
-      this.drawUnsettledLine();
-    }
+    this.drawUnsettledLine();
   }
 
   resetViewConfig(): void {
@@ -201,13 +199,12 @@ export class DigitizerComponent implements OnInit {
     this.isPlotting = !this.isEditAxis;
     this.settingLayer.locked = !this.isEditAxis;
     this.settingLayer.visible = this.isEditAxis;
-    // this.backgroundLayer.locked = this.isEditAxis;
     this.plottingLayer.locked = this.isEditAxis;
   }
 
   onClickCanvas(): void {
     if (this.isViewDragging || !this.file || !this.isPlotting) { return; }
-    // パスの頂点座標の配列にクリック位置のx, y座標を追加する
+    // 座標点リストにクリック位置のx, y座標を追加する
     this.vertexList.push({
       x: this.plotX,
       y: this.plotY,
@@ -293,13 +290,14 @@ export class DigitizerComponent implements OnInit {
     this.setRangePath();
     // プロット用パスをリセット
     this.initialPathItemsSetting();
+    // 座標点リストをリセット
+    this.vertexList = [];
 
     const raster = new Raster('image');
     // Rasterオブジェクトの中心をキャンバスの中心に合わせる
     raster.position = view.center;
     // 作業レイヤーにRasterオブジェクトを追加する
     this.backgroundLayer.addChild(raster);
-    this.isPlotting = true;
   }
 
   private setEventsToView(): void {
@@ -474,7 +472,6 @@ export class DigitizerComponent implements OnInit {
       // 頂点追加処理の場合、パスグループの既存の子要素配列の間に挿入する
       this.pathGroup.insertChild(insertIndex + 1, marker);
     } else {
-      // 多角形を閉じる前はパスグループの子要素配列の末尾に追加していく
       this.pathGroup.addChild(marker);
     }
   }
@@ -528,7 +525,7 @@ export class DigitizerComponent implements OnInit {
       // パス頂点のマーカーの座標を更新する
       this.pathGroup.children[index + 1].position.x = event.point.x;
       this.pathGroup.children[index + 1].position.y = event.point.y;
-      // パスの頂点座標の配列を更新する
+      // 座標点リストを更新する
       this.vertexList[index].x = this.plotX;
       this.vertexList[index].y = this.plotY;
     };
@@ -555,7 +552,6 @@ export class DigitizerComponent implements OnInit {
 
     this.path.onClick = () => {
       if (this.isPlotting) { return; }
-      this.isPathSelected = !this.isPathSelected;
       // パスの選択状態を切り替える
       this.path.selected = !this.path.selected;
     };

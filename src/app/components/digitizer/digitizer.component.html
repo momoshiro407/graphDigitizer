@@ -8,14 +8,12 @@
         </canvas>
         マウス座標：{{ plotX | number: '1.2-2' }}, {{ plotY | number: '1.2-2' }}<br>
         倍率：<span [class.outrange]="isScaleEndRange">x{{ scale | number: '1.2-2' }}</span>
-        <!-- TODO: ボタンによる拡大縮小は開発時の確認用、不要になったら削除 -->
-        <!-- <button (click)="zoomUp()">拡大</button>
-        <button (click)="zoomOut()">縮小</button> -->
       </div>
       <div class="d-flex image-configure mt-2">
         <div class="col-10 p-0">
           <button mat-raised-button (click)="onClickFileInputButton()">画像を読み込む</button>
-          <button mat-raised-button (click)="setAxisRange()" class="ml-2" [class.editingAxis]="isEditAxis" [disabled]="!file" >
+          <button mat-raised-button (click)="setAxisRange()" class="ml-2" [class.editingAxis]="isEditAxis"
+            [disabled]="!file || vertexList.length !== 0">
             {{ isEditAxis ? '座標軸の設定終了' : '座標軸を設定する' }}
           </button>
           <button mat-raised-button class="ml-2" [disabled]="!file" (click)="resetViewConfig()">Viewをリセット</button>
@@ -76,7 +74,7 @@
 </div>
 <mat-menu #contextMenu="matMenu">
   <ng-template matMenuContent class="context-menu">
-    <div mat-menu-item (click)="addSegment()" [class.disabled]="!isMouseOnStroke">頂点の追加</div>
-    <div mat-menu-item (click)="removeSegment()" [class.disabled]="!isMouseOnSegment">頂点の削除</div>
+    <div mat-menu-item (click)="addSegment()" [class.disabled]="!isMouseOnStroke">座標点の追加</div>
+    <div mat-menu-item (click)="removeSegment()" [class.disabled]="!isMouseOnSegment">座標点の削除</div>
   </ng-template>
 </mat-menu>

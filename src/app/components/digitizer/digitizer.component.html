@@ -3,7 +3,7 @@
     <div class="col-6 canvas-wrapper ml-2">
       <div>
         <canvas class="m-0" #canvas (mousewheel)="scalingView($event)" (mousemove)="setCurrentPosision($event)"
-          (mouseup)="onClickCanvas()" [class.onStroke]="isEditAxis && isMouseOnStroke" [class.isPlotting]="isPlotting"
+          (click)="onClickCanvas()" [class.onStroke]="isEditAxis && isMouseOnStroke" [class.isPlotting]="isPlotting"
           [class.onSegment]="isMouseOnSegment" (contextmenu)="openMenu($event)">
         </canvas>
         マウス座標：{{ plotX | number: '1.2-2' }}, {{ plotY | number: '1.2-2' }}<br>

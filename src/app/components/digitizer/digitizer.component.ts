@@ -25,8 +25,6 @@ export class DigitizerComponent implements OnInit {
   imgSrc: string | ArrayBuffer = '';
   currentX = 0;
   currentY = 0;
-  editStartViewX: number;
-  editStartViewY: number;
   editStartPlotX: number;
   editStartPlotY: number;
   plotX = 0;
@@ -43,7 +41,7 @@ export class DigitizerComponent implements OnInit {
   isEditAxis = false;
   isMouseOnStroke = false;
   isItemDragging = false;
-  isPlotting = true;
+  isPlotting = false;
   isViewDragging = false;
   isMouseOnSegment = false;
   // オンマウス状態のパスの子オブジェクト
@@ -72,9 +70,10 @@ export class DigitizerComponent implements OnInit {
     if (event.key === 'Escape') {
       if (this.file && !this.isEditAxis && this.path.segments.length > 0) {
         this.isPlotting = !this.isPlotting;
-        this.drawUnsettledLine();
-        // プロット中断状態なら未確定パスを削除
-        if (!this.isPlotting) {
+        // 未確定パスの表示・非表示を切り替える
+        if (this.isPlotting) {
+          this.drawUnsettledLine();
+        } else {
           this.unsettledPath.removeSegments();
         }
       }
@@ -87,7 +86,7 @@ export class DigitizerComponent implements OnInit {
           this.path.removeSegments();
           // プロットマーカーはindex=1以降に格納されているので全て削除
           this.pathGroup.children.splice(1);
-          // 各種変数や状態などをリセット
+          // 座標点リストをリセット
           this.vertexList = [];
           this.path.selected = false;
           this.isPlotting = true;
@@ -151,7 +150,9 @@ export class DigitizerComponent implements OnInit {
     const plotXY = this.convertViewToPlot(this.currentX, this.currentY);
     this.plotX = plotXY.x;
     this.plotY = plotXY.y;
-    this.drawUnsettledLine();
+    if (this.isPlotting) {
+      this.drawUnsettledLine();
+    }
   }
 
   resetViewConfig(): void {
@@ -204,7 +205,10 @@ export class DigitizerComponent implements OnInit {
   }
 
   onClickCanvas(): void {
-    if (this.isViewDragging || !this.file || !this.isPlotting) { return; }
+    if (this.isViewDragging || !this.file || !this.isPlotting) {
+      this.isViewDragging = false;
+      return;
+    }
     // 座標点リストにクリック位置のx, y座標を追加する
     this.vertexList.push({
       x: this.plotX,
@@ -219,9 +223,6 @@ export class DigitizerComponent implements OnInit {
     this.isEditMenuOpened = true;
     // デフォルトのコンテキストメニューを開かないようにする
     event.preventDefault();
-    // 右クリックした時点のマウスポインターの座標を保持する
-    this.editStartViewX = this.currentX;
-    this.editStartViewY = this.currentY;
     const editStartPlotXY = this.convertViewToPlot(this.currentX, this.currentY);
     this.editStartPlotX = editStartPlotXY.x;
     this.editStartPlotY = editStartPlotXY.y;
@@ -240,7 +241,7 @@ export class DigitizerComponent implements OnInit {
 
   addSegment(): void {
     const insertIndex = this.activeLocation.index + 1;
-    this.path.insert(insertIndex, new Point(this.editStartViewX, this.editStartViewY));
+    this.path.insert(insertIndex, new Point(this.currentX, this.currentY));
     this.vertexList.splice(insertIndex, 0, { x: this.editStartPlotX, y: this.editStartPlotY });
     this.plotMarker(insertIndex);
     this.contextMenu.closeMenu();
@@ -304,18 +305,12 @@ export class DigitizerComponent implements OnInit {
   private setEventsToView(): void {
     const tool = new Tool();
     tool.onMouseDrag = (event) => {
-      // 画像読み込み前、またはカーソルが座標点パス上にある場合は背景画像の平行移動は無効
       if (!this.file || !!this.activeLocation || this.isMouseOnSegment) { return; }
       this.isViewDragging = true;
       // delta = 最後にクリックされた位置の座標 - 現在地の座標
       const delta = event.downPoint.subtract(event.point);
       view.scrollBy(delta);
       this.updateRangePath();
-    };
-    tool.onMouseUp = (event) => {
-      if (this.isViewDragging) {
-        this.isViewDragging = false;
-      }
     };
   }
 
@@ -438,6 +433,9 @@ export class DigitizerComponent implements OnInit {
       this.pathGroup,
       this.unsettledPath,
     ]);
+
+    // プロット準備完了
+    this.isPlotting = true;
   }
 
   private convertViewToPlot(preX: number, preY: number): Point {
@@ -485,7 +483,7 @@ export class DigitizerComponent implements OnInit {
   }
 
   private drawUnsettledLine(): void {
-    if (this.path.segments.length === 0 || !this.path.lastSegment || !this.isPlotting) { return; }
+    if (this.path.segments.length === 0 || !this.path.lastSegment) { return; }
     this.unsettledPath.removeSegments();
     // 未確定パスの設定
     this.unsettledPath.strokeColor = 'rgb(0, 0, 0, 0.1)';
@@ -516,8 +514,7 @@ export class DigitizerComponent implements OnInit {
     };
 
     this.path.onMouseDrag = (event) => {
-      if (this.isPlotting) { return; }
-      if (!this.activeSegment) { return; }
+      if (this.isPlotting || !this.activeSegment) { return; }
       const index = this.activeSegment.index;
       this.isItemDragging = true;
       // パスのセグメントの座標を更新する
